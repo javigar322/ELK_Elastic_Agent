@@ -182,63 +182,63 @@ services:
     networks:
       - elastic_network # Red compartida por los servicios del stack.
 
-fleet-server:
-  # Servicio para Fleet Server, responsable de gestionar agentes Elastic.
-  depends_on:
-    kibana:
-      condition: service_healthy # Espera a que Kibana esté disponible.
-  image: docker.elastic.co/elastic-agent/elastic-agent:${STACK_VERSION} # Imagen del agente Elastic.
-  restart: always # Reinicia el contenedor automáticamente si falla.
-  user: root # Ejecutar como usuario root.
-  ports:
-    - ${FLEET_SERVER_PORT}:8220 # Expone el puerto 8220 para el servidor Fleet.
-  environment:
-    # Configuración de certificados y conexión.
-    - SSL_CERTIFICATE_AUTHORITIES=/usr/share/elastic-agent/certs/ca/ca.crt # CA para validación.
-    - CERTIFICATE_AUTHORITIES=/usr/share/elastic-agent/certs/ca/ca.crt # Certificados de autoridad.
-    - FLEET_CA=/usr/share/elastic-agent/certs/ca/ca.crt # CA para el servidor Fleet.
-    - FLEET_SERVER_CERT=/usr/share/elastic-agent/certs/fleet-server/fleet-server.crt # Certificado del servidor Fleet.
-    - FLEET_SERVER_CERT_KEY=/usr/share/elastic-agent/certs/fleet-server/fleet-server.key # Llave del servidor Fleet.
+  fleet-server:
+    # Servicio para Fleet Server, responsable de gestionar agentes Elastic.
+    depends_on:
+      kibana:
+        condition: service_healthy # Espera a que Kibana esté disponible.
+    image: docker.elastic.co/elastic-agent/elastic-agent:${STACK_VERSION} # Imagen del agente Elastic.
+    restart: always # Reinicia el contenedor automáticamente si falla.
+    user: root # Ejecutar como usuario root.
+    ports:
+      - ${FLEET_SERVER_PORT}:8220 # Expone el puerto 8220 para el servidor Fleet.
+    environment:
+      # Configuración de certificados y conexión.
+      - SSL_CERTIFICATE_AUTHORITIES=/usr/share/elastic-agent/certs/ca/ca.crt # CA para validación.
+      - CERTIFICATE_AUTHORITIES=/usr/share/elastic-agent/certs/ca/ca.crt # Certificados de autoridad.
+      - FLEET_CA=/usr/share/elastic-agent/certs/ca/ca.crt # CA para el servidor Fleet.
+      - FLEET_SERVER_CERT=/usr/share/elastic-agent/certs/fleet-server/fleet-server.crt # Certificado del servidor Fleet.
+      - FLEET_SERVER_CERT_KEY=/usr/share/elastic-agent/certs/fleet-server/fleet-server.key # Llave del servidor Fleet.
 
-    # Configuración de Fleet Server.
-    - FLEET_INSECURE=true # Permite conexiones inseguras durante el desarrollo.
-    - FLEET_SERVER_ELASTICSEARCH_CA=/usr/share/elastic-agent/certs/ca/ca.crt # CA para Elasticsearch.
-    - FLEET_SERVER_ELASTICSEARCH_SSL_CERTIFICATE=/usr/share/elastic-agent/certs/es01/es01.crt # Certificado de Elasticsearch.
-    - FLEET_SERVER_ELASTICSEARCH_SSL_KEY=/usr/share/elastic-agent/certs/es01/es01.key # Llave de Elasticsearch.
-    - FLEET_SERVER_ELASTICSEARCH_HOST=https://es01:9200 # Host de Elasticsearch.
-    - FLEET_SERVER_ELASTICSEARCH_INSECURE=true # Permite conexiones inseguras a Elasticsearch.
-    - FLEET_SERVER_ENABLE=true # Habilita el servidor Fleet.
-    - FLEET_SERVER_POLICY_ID=fleet-server-policy # ID de la política asignada al servidor Fleet.
-    - FLEET_URL=https://fleet-server:8220 # URL del servidor Fleet.
+      # Configuración de Fleet Server.
+      - FLEET_INSECURE=true # Permite conexiones inseguras durante el desarrollo.
+      - FLEET_SERVER_ELASTICSEARCH_CA=/usr/share/elastic-agent/certs/ca/ca.crt # CA para Elasticsearch.
+      - FLEET_SERVER_ELASTICSEARCH_SSL_CERTIFICATE=/usr/share/elastic-agent/certs/es01/es01.crt # Certificado de Elasticsearch.
+      - FLEET_SERVER_ELASTICSEARCH_SSL_KEY=/usr/share/elastic-agent/certs/es01/es01.key # Llave de Elasticsearch.
+      - FLEET_SERVER_ELASTICSEARCH_HOST=https://es01:9200 # Host de Elasticsearch.
+      - FLEET_SERVER_ELASTICSEARCH_INSECURE=true # Permite conexiones inseguras a Elasticsearch.
+      - FLEET_SERVER_ENABLE=true # Habilita el servidor Fleet.
+      - FLEET_SERVER_POLICY_ID=fleet-server-policy # ID de la política asignada al servidor Fleet.
+      - FLEET_URL=https://fleet-server:8220 # URL del servidor Fleet.
 
-    # Configuración de Kibana.
-    - KIBANA_FLEET_CA=/usr/share/elastic-agent/certs/ca/ca.crt # CA para Kibana.
-    - KIBANA_FLEET_USERNAME=elastic # Usuario para autenticación con Kibana.
-    - KIBANA_FLEET_PASSWORD=${ELASTIC_PASSWORD} # Contraseña del usuario.
-    - KIBANA_HOST=https://kibana:5601 # Dirección de Kibana.
+      # Configuración de Kibana.
+      - KIBANA_FLEET_CA=/usr/share/elastic-agent/certs/ca/ca.crt # CA para Kibana.
+      - KIBANA_FLEET_USERNAME=elastic # Usuario para autenticación con Kibana.
+      - KIBANA_FLEET_PASSWORD=${ELASTIC_PASSWORD} # Contraseña del usuario.
+      - KIBANA_HOST=https://kibana:5601 # Dirección de Kibana.
 
-    # Nivel de registro de logs.
-    - LOG_LEVEL=debug # Nivel de detalle para los logs.
-  volumes:
-    - certs:/usr/share/elastic-agent/certs # Certificados compartidos.
-    - fleet-server-data:/usr/share/elastic-agent # Volumen para datos persistentes del servidor Fleet.
-    - "/var/lib/docker/containers:/var/lib/docker/containers:ro"
-      # Este volumen proporciona acceso de solo lectura a los metadatos y logs de los contenedores de Docker
-      # en el sistema host. Es útil para monitorear actividades y estados de los contenedores.
-    - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      # Permite al agente interactuar con el daemon de Docker en el sistema host para recopilar información
-      # sobre los contenedores en ejecución. Esto incluye la supervisión de métricas y eventos en tiempo real.
-    - "/sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro"
-      # Da acceso al sistema de control de grupos (cgroups) en el host. Los cgroups se utilizan para obtener
-      # información sobre el uso de recursos como CPU, memoria y red, asignados a los contenedores.
-    - "/proc:/hostfs/proc:ro"
-      # Proporciona acceso al sistema de archivos proc del host, que contiene información en tiempo real sobre
-      # los procesos y el estado del sistema. Es crucial para supervisar procesos dentro y fuera de los contenedores.
-    - "/:/hostfs:ro"
-      # Monta todo el sistema de archivos del host en modo de solo lectura. Esto permite al agente acceder a
-      # configuraciones del sistema, logs y otros datos necesarios para monitorear el host y los contenedores.
-  networks:
-    - elastic_network # Red compartida por los servicios del stack.
+      # Nivel de registro de logs.
+      - LOG_LEVEL=debug # Nivel de detalle para los logs.
+    volumes:
+      - certs:/usr/share/elastic-agent/certs # Certificados compartidos.
+      - fleet-server-data:/usr/share/elastic-agent # Volumen para datos persistentes del servidor Fleet.
+      - "/var/lib/docker/containers:/var/lib/docker/containers:ro"
+        # Este volumen proporciona acceso de solo lectura a los metadatos y logs de los contenedores de Docker
+        # en el sistema host. Es útil para monitorear actividades y estados de los contenedores.
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+        # Permite al agente interactuar con el daemon de Docker en el sistema host para recopilar información
+        # sobre los contenedores en ejecución. Esto incluye la supervisión de métricas y eventos en tiempo real.
+      - "/sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro"
+        # Da acceso al sistema de control de grupos (cgroups) en el host. Los cgroups se utilizan para obtener
+        # información sobre el uso de recursos como CPU, memoria y red, asignados a los contenedores.
+      - "/proc:/hostfs/proc:ro"
+        # Proporciona acceso al sistema de archivos proc del host, que contiene información en tiempo real sobre
+        # los procesos y el estado del sistema. Es crucial para supervisar procesos dentro y fuera de los contenedores.
+      - "/:/hostfs:ro"
+        # Monta todo el sistema de archivos del host en modo de solo lectura. Esto permite al agente acceder a
+        # configuraciones del sistema, logs y otros datos necesarios para monitorear el host y los contenedores.
+    networks:
+      - elastic_network # Red compartida por los servicios del stack.
 
 volumes:
   certs:
