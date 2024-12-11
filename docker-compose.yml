@@ -1,219 +1,200 @@
 # Definimos los servicios necesarios para la configuración del stack de Elastic.
 services:
- setup:
-   # Servicio para la configuración inicial del stack, incluyendo certificados y contraseñas.
-   image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION} # Imagen de Elasticsearch.
-   volumes:
-     # Volúmenes para almacenar los certificados generados.
-     - certs:/usr/share/elasticsearch/config/certs
-   user: "0" # Ejecutar el contenedor como usuario root.
-   command: >
-     # Comandos que se ejecutan al iniciar el contenedor.
-    bash -c '
-      # Verifica que las variables de entorno requeridas estén configuradas.
-      if [ x${ELASTIC_PASSWORD} == x ]; then
-        echo "Set the ELASTIC_PASSWORD environment variable in the .env file";
-        exit 1;
-      elif [ x${KIBANA_PASSWORD} == x ]; then
-        echo "Set the KIBANA_PASSWORD environment variable in the .env file";
-        exit 1;
-      fi;
-      # Genera el certificado de la CA si no existe.
-      if [ ! -f config/certs/ca.zip ]; then
-        echo "Creating CA";
-        bin/elasticsearch-certutil ca --silent --pem -out config/certs/ca.zip;
-        unzip config/certs/ca.zip -d config/certs;
-      fi;
-      # Genera los certificados para las instancias si no existen.
-      if [ ! -f config/certs/certs.zip ]; then
-        echo "Creating certs";
-        echo -ne \
-        "instances:\n"\
-        "  - name: es01\n"\
-        "    dns:\n"\
-        "      - es01\n"\
-        "      - localhost\n"\
-        "    ip:\n"\
-        "      - 127.0.0.1\n"\
-        "  - name: kibana\n"\
-        "    dns:\n"\
-        "      - kibana\n"\
-        "      - localhost\n"\
-        "    ip:\n"\
-        "      - 127.0.0.1\n"\
-        "  - name: fleet-server\n"\
-        "    dns:\n"\
-        "      - fleet-server\n"\
-        "      - localhost\n"\
-        "    ip:\n"\
-        "      - 127.0.0.1\n"\
-        > config/certs/instances.yml;
-        bin/elasticsearch-certutil cert --silent --pem -out config/certs/certs.zip --in config/certs/instances.yml --ca-cert config/certs/ca/ca.crt --ca-key config/certs/ca/ca.key;
-        unzip config/certs/certs.zip -d config/certs;
-      fi;
-      # Configura permisos de archivos generados.
-      echo "Setting file permissions"
-      chown -R root:root config/certs;
-      find . -type d -exec chmod 750 \{\} \;;
-      find . -type f -exec chmod 640 \{\} \;;
-      # Espera hasta que Elasticsearch esté disponible.
-      echo "Waiting for Elasticsearch availability";
-      until curl -s --cacert config/certs/ca/ca.crt https://es01:9200 | grep -q "missing authentication credentials"; do sleep 30; done;
-      # Configura la contraseña del usuario del sistema Kibana.
-      echo "Setting kibana_system password";
-      until curl -s -X POST --cacert config/certs/ca/ca.crt -u "elastic:${ELASTIC_PASSWORD}" -H "Content-Type: application/json" https://es01:9200/_security/user/kibana_system/_password -d "{\"password\":\"${KIBANA_PASSWORD}\"}" | grep -q "^{}"; do sleep 10; done;
-      echo "All done!";
-    '
-   healthcheck:
-     # Verifica que el archivo de certificado para Elasticsearch se haya creado.
-     test: ["CMD-SHELL", "[ -f config/certs/es01/es01.crt ]"]
-     interval: 1s # Intervalo entre verificaciones de estado.
-     timeout: 5s  # Tiempo máximo para considerar una verificación fallida.
-     retries: 120 # Número de reintentos antes de considerar el servicio no saludable.
-   networks:
-     - elastic_network # Red compartida por los servicios del stack.
+  setup:
+    # Servicio para la configuración inicial del stack, incluyendo certificados y contraseñas.
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION} # Imagen de Elasticsearch.
+    volumes:
+      # Volúmenes para almacenar los certificados generados.
+      - certs:/usr/share/elasticsearch/config/certs
+    user: "0" # Ejecutar el contenedor como usuario root.
+    command: >
+      # Comandos que se ejecutan al iniciar el contenedor. bash -c '
+        # Verifica que las variables de entorno requeridas estén configuradas.
+        if [ x${ELASTIC_PASSWORD} == x ]; then
+          echo "Set the ELASTIC_PASSWORD environment variable in the .env file";
+          exit 1;
+        elif [ x${KIBANA_PASSWORD} == x ]; then
+          echo "Set the KIBANA_PASSWORD environment variable in the .env file";
+          exit 1;
+        fi;
+        # Genera el certificado de la CA si no existe.
+        if [ ! -f config/certs/ca.zip ]; then
+          echo "Creating CA";
+          bin/elasticsearch-certutil ca --silent --pem -out config/certs/ca.zip;
+          unzip config/certs/ca.zip -d config/certs;
+        fi;
+        # Genera los certificados para las instancias si no existen.
+        if [ ! -f config/certs/certs.zip ]; then
+          echo "Creating certs";
+          echo -ne \
+          "instances:\n"\
+          "  - name: es01\n"\
+          "    dns:\n"\
+          "      - es01\n"\
+          "      - localhost\n"\
+          "    ip:\n"\
+          "      - 127.0.0.1\n"\
+          "  - name: kibana\n"\
+          "    dns:\n"\
+          "      - kibana\n"\
+          "      - localhost\n"\
+          "    ip:\n"\
+          "      - 127.0.0.1\n"\
+          "  - name: fleet-server\n"\
+          "    dns:\n"\
+          "      - fleet-server\n"\
+          "      - localhost\n"\
+          "    ip:\n"\
+          "      - 127.0.0.1\n"\
+          > config/certs/instances.yml;
+          bin/elasticsearch-certutil cert --silent --pem -out config/certs/certs.zip --in config/certs/instances.yml --ca-cert config/certs/ca/ca.crt --ca-key config/certs/ca/ca.key;
+          unzip config/certs/certs.zip -d config/certs;
+        fi;
+        # Configura permisos de archivos generados.
+        echo "Setting file permissions"
+        chown -R root:root config/certs;
+        find . -type d -exec chmod 750 \{\} \;;
+        find . -type f -exec chmod 640 \{\} \;;
+        # Espera hasta que Elasticsearch esté disponible.
+        echo "Waiting for Elasticsearch availability";
+        until curl -s --cacert config/certs/ca/ca.crt https://es01:9200 | grep -q "missing authentication credentials"; do sleep 30; done;
+        # Configura la contraseña del usuario del sistema Kibana.
+        echo "Setting kibana_system password";
+        until curl -s -X POST --cacert config/certs/ca/ca.crt -u "elastic:${ELASTIC_PASSWORD}" -H "Content-Type: application/json" https://es01:9200/_security/user/kibana_system/_password -d "{\"password\":\"${KIBANA_PASSWORD}\"}" | grep -q "^{}"; do sleep 10; done;
+        echo "All done!";
+      '
+    healthcheck:
+      # Verifica que el archivo de certificado para Elasticsearch se haya creado.
+      test: [ "CMD-SHELL", "[ -f config/certs/es01/es01.crt ]" ]
+      interval: 1s # Intervalo entre verificaciones de estado.
+      timeout: 5s # Tiempo máximo para considerar una verificación fallida.
+      retries: 120 # Número de reintentos antes de considerar el servicio no saludable.
+    networks:
+      - elastic_network # Red compartida por los servicios del stack.
 
+  es01:
+    # Nodo principal de Elasticsearch.
+    depends_on:
+      setup:
+        condition: service_healthy # Espera a que el servicio de configuración esté listo.
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION} # Imagen de Elasticsearch.
+    volumes:
+      - certs:/usr/share/elasticsearch/config/certs # Certificados SSL.
+      - esdata01:/usr/share/elasticsearch/data # Almacenamiento de datos persistente.
+    ports:
+      - ${ES_PORT}:9200 # Expone el puerto 9200 para conexiones HTTP.
+    environment:
+      # Configuración del nodo y del cluster.
+      - node.name=es01 # Nombre del nodo.
+      - cluster.name=${CLUSTER_NAME} # Nombre del clúster.
+      - discovery.type=single-node # Configuración para un clúster de un solo nodo.
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD} # Contraseña para el usuario "elastic".
+      - bootstrap.memory_lock=true # Bloqueo de memoria para mejorar el rendimiento.
+      # Configuración de seguridad y SSL para HTTP.
+      - xpack.security.enabled=true # Habilita la seguridad en Elasticsearch.
+      - xpack.security.http.ssl.enabled=true # Habilita SSL en HTTP.
+      - xpack.security.http.ssl.key=certs/es01/es01.key # Llave SSL.
+      - xpack.security.http.ssl.certificate=certs/es01/es01.crt # Certificado SSL.
+      - xpack.security.http.ssl.certificate_authorities=certs/ca/ca.crt # CA para validar conexiones.
+      # Configuración de seguridad y SSL para transporte interno.
+      - xpack.security.transport.ssl.enabled=true # Habilita SSL en transporte interno.
+      - xpack.security.transport.ssl.key=certs/es01/es01.key # Llave SSL.
+      - xpack.security.transport.ssl.certificate=certs/es01/es01.crt # Certificado SSL.
+      - xpack.security.transport.ssl.certificate_authorities=certs/ca/ca.crt # CA para transporte interno.
+      - xpack.security.transport.ssl.verification_mode=certificate # Nivel de verificación SSL.
+      - xpack.license.self_generated.type=${LICENSE} # Tipo de licencia (por defecto).
+      - network.host=0.0.0.0 # Permite que el nodo escuche en todas las interfaces.
+    deploy:
+      resources:
+        limits:
+          memory: ${MEM_LIMIT} # Límite de memoria asignada al contenedor.
+    ulimits:
+      memlock:
+        soft: -1 # Bloqueo suave de memoria.
+        hard: -1 # Bloqueo duro de memoria.
+    healthcheck:
+      # Verifica que Elasticsearch esté operativo.
+      test: [ "CMD-SHELL", "curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 | grep -q 'missing authentication credentials'" ]
+      interval: 10s # Intervalo entre verificaciones.
+      timeout: 10s # Tiempo máximo para considerar la verificación fallida.
+      retries: 120 # Número de reintentos permitidos.
+    networks:
+      - elastic_network # Red compartida por los servicios del stack.
 
- es01:
-   # Nodo principal de Elasticsearch.
-   depends_on:
-     setup:
-       condition: service_healthy # Espera a que el servicio de configuración esté listo.
-   image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION} # Imagen de Elasticsearch.
-   volumes:
-     - certs:/usr/share/elasticsearch/config/certs # Certificados SSL.
-     - esdata01:/usr/share/elasticsearch/data # Almacenamiento de datos persistente.
-   ports:
-     - ${ES_PORT}:9200 # Expone el puerto 9200 para conexiones HTTP.
-   environment:
-     # Configuración del nodo y del cluster.
-     - node.name=es01 # Nombre del nodo.
-     - cluster.name=${CLUSTER_NAME} # Nombre del clúster.
-     - discovery.type=single-node # Configuración para un clúster de un solo nodo.
-     - ELASTIC_PASSWORD=${ELASTIC_PASSWORD} # Contraseña para el usuario "elastic".
-     - bootstrap.memory_lock=true # Bloqueo de memoria para mejorar el rendimiento.
-     # Configuración de seguridad y SSL para HTTP.
-     - xpack.security.enabled=true # Habilita la seguridad en Elasticsearch.
-     - xpack.security.http.ssl.enabled=true # Habilita SSL en HTTP.
-     - xpack.security.http.ssl.key=certs/es01/es01.key # Llave SSL.
-     - xpack.security.http.ssl.certificate=certs/es01/es01.crt # Certificado SSL.
-     - xpack.security.http.ssl.certificate_authorities=certs/ca/ca.crt # CA para validar conexiones.
-     # Configuración de seguridad y SSL para transporte interno.
-     - xpack.security.transport.ssl.enabled=true # Habilita SSL en transporte interno.
-     - xpack.security.transport.ssl.key=certs/es01/es01.key # Llave SSL.
-     - xpack.security.transport.ssl.certificate=certs/es01/es01.crt # Certificado SSL.
-     - xpack.security.transport.ssl.certificate_authorities=certs/ca/ca.crt # CA para transporte interno.
-     - xpack.security.transport.ssl.verification_mode=certificate # Nivel de verificación SSL.
-     - xpack.license.self_generated.type=${LICENSE} # Tipo de licencia (por defecto).
-     - network.host=0.0.0.0 # Permite que el nodo escuche en todas las interfaces.
-   deploy:
-     resources:
-       limits:
-         memory: ${MEM_LIMIT} # Límite de memoria asignada al contenedor.
-   ulimits:
-     memlock:
-       soft: -1 # Bloqueo suave de memoria.
-       hard: -1 # Bloqueo duro de memoria.
-   healthcheck:
-     # Verifica que Elasticsearch esté operativo.
-     test:
-       [
-         "CMD-SHELL",
-         "curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 | grep -q 'missing authentication credentials'",
-       ]
-     interval: 10s # Intervalo entre verificaciones.
-     timeout: 10s # Tiempo máximo para considerar la verificación fallida.
-     retries: 120 # Número de reintentos permitidos.
-   networks:
-     - elastic_network # Red compartida por los servicios del stack.
+  kibana:
+    # Servicio de Kibana para la visualización y gestión de datos en Elasticsearch.
+    depends_on:
+      es01:
+        condition: service_healthy # Espera a que Elasticsearch esté disponible.
+    image: docker.elastic.co/kibana/kibana:${STACK_VERSION} # Imagen de Kibana.
+    volumes:
+      - certs:/usr/share/kibana/config/certs # Certificados SSL para Kibana.
+      - kibana-data:/usr/share/kibana/data # Volumen para datos persistentes de Kibana.
+      - ./kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro # Archivo de configuración personalizado.
+    ports:
+      - ${KIBANA_PORT}:5601 # Puerto expuesto para acceder a Kibana.
+    environment:
+      # Configuración del servidor Kibana.
+      - SERVERNAME=kibana # Nombre del servidor.
+      - SERVER_HOST=0.0.0.0 # Dirección donde escucha Kibana.
+      - SERVER_SSL_ENABLED=true # Habilita SSL en el servidor Kibana.
+      - SERVER_SSL_CERTIFICATE=/usr/share/kibana/config/certs/kibana/kibana.crt # Certificado SSL del servidor.
+      - SERVER_SSL_KEY=/usr/share/kibana/config/certs/kibana/kibana.key # Llave SSL del servidor.
 
+      # Configuración de conexión a Elasticsearch.
+      - ELASTICSEARCH_HOSTS=https://es01:9200 # Dirección de Elasticsearch.
+      - ELASTICSEARCH_USERNAME=kibana_system # Usuario para conectarse a Elasticsearch.
+      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD} # Contraseña para el usuario.
+      - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt # CA para validar la conexión.
+      - ELASTICSEARCH_SSL_VERIFICATIONMODE=certificate # Modo de verificación SSL.
 
+      # Claves de cifrado para funciones de seguridad en Kibana.
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY} # Clave para objetos cifrados.
+      - XPACK_SECURITY_ENCRYPTIONKEY=${SECURITY_ENCRYPTIONKEY} # Clave para funciones de seguridad.
+      - XPACK_REPORTING_ENCRYPTIONKEY=${REPORTING_ENCRYPTIONKEY} # Clave para reportes.
 
+    deploy:
+      resources:
+        limits:
+          memory: ${MEM_LIMIT} # Límite de memoria asignada al contenedor.
+    ulimits:
+      memlock:
+        soft: -1 # Bloqueo suave de memoria.
+        hard: -1 # Bloqueo duro de memoria.
+    healthcheck:
+      # Verifica que Kibana esté operativo.
+      test: [ "CMD-SHELL", "curl -s --cacert /usr/share/kibana/config/certs/ca/ca.crt https://localhost:5601/api/status | grep -q '\"level\":\"available\"'" ]
+      interval: 10s # Intervalo entre verificaciones.
+      timeout: 10s # Tiempo máximo para considerar la verificación fallida.
+      retries: 120 # Número de reintentos permitidos.
+    networks:
+      - elastic_network # Red compartida por los servicios del stack.
 
- kibana:
-   # Servicio de Kibana para la visualización y gestión de datos en Elasticsearch.
-   depends_on:
-     es01:
-       condition: service_healthy # Espera a que Elasticsearch esté disponible.
-   image: docker.elastic.co/kibana/kibana:${STACK_VERSION} # Imagen de Kibana.
-   volumes:
-     - certs:/usr/share/kibana/config/certs # Certificados SSL para Kibana.
-     - kibana-data:/usr/share/kibana/data # Volumen para datos persistentes de Kibana.
-     - ./kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro # Archivo de configuración personalizado.
-   ports:
-     - ${KIBANA_PORT}:5601 # Puerto expuesto para acceder a Kibana.
-   environment:
-     # Configuración del servidor Kibana.
-     - SERVERNAME=kibana # Nombre del servidor.
-     - SERVER_HOST=0.0.0.0 # Dirección donde escucha Kibana.
-     - SERVER_SSL_ENABLED=true # Habilita SSL en el servidor Kibana.
-     - SERVER_SSL_CERTIFICATE=/usr/share/kibana/config/certs/kibana/kibana.crt # Certificado SSL del servidor.
-     - SERVER_SSL_KEY=/usr/share/kibana/config/certs/kibana/kibana.key # Llave SSL del servidor.
-
-
-     # Configuración de conexión a Elasticsearch.
-     - ELASTICSEARCH_HOSTS=https://es01:9200 # Dirección de Elasticsearch.
-     - ELASTICSEARCH_USERNAME=kibana_system # Usuario para conectarse a Elasticsearch.
-     - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD} # Contraseña para el usuario.
-     - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt # CA para validar la conexión.
-     - ELASTICSEARCH_SSL_VERIFICATIONMODE=certificate # Modo de verificación SSL.
-
-
-     # Claves de cifrado para funciones de seguridad en Kibana.
-     - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY} # Clave para objetos cifrados.
-     - XPACK_SECURITY_ENCRYPTIONKEY=${SECURITY_ENCRYPTIONKEY} # Clave para funciones de seguridad.
-     - XPACK_REPORTING_ENCRYPTIONKEY=${REPORTING_ENCRYPTIONKEY} # Clave para reportes.
-
-
-   deploy:
-     resources:
-       limits:
-         memory: ${MEM_LIMIT} # Límite de memoria asignada al contenedor.
-   ulimits:
-     memlock:
-       soft: -1 # Bloqueo suave de memoria.
-       hard: -1 # Bloqueo duro de memoria.
-   healthcheck:
-     # Verifica que Kibana esté operativo.
-     test:
-       [
-         "CMD-SHELL",
-         "curl -s --cacert /usr/share/kibana/config/certs/ca/ca.crt https://localhost:5601/api/status | grep -q '\"level\":\"available\"'",
-       ]
-     interval: 10s # Intervalo entre verificaciones.
-     timeout: 10s # Tiempo máximo para considerar la verificación fallida.
-     retries: 120 # Número de reintentos permitidos.
-   networks:
-     - elastic_network # Red compartida por los servicios del stack.
-
-
- nginx-app:
-   # Servicio de Nginx como aplicación de ejemplo.
-   build:
-     context: ./nginx-app # Ruta donde se encuentra el Dockerfile.
-   ports:
-     - "8080:80" # Mapea el puerto 80 del contenedor al puerto 8080 del host.
-   volumes:
-     - nginx-data:/var/log/nginx # Volumen para los logs.
-     - ./nginx-app/nginx.conf:/etc/nginx/nginx.conf:ro # Archivo de configuración personalizado.
-   networks:
-     - elastic_network # Red compartida por los servicios del stack.
-
+  nginx-app:
+    # Servicio de Nginx como aplicación de ejemplo.
+    build:
+      context: ./nginx-app # Ruta donde se encuentra el Dockerfile.
+    ports:
+      - "8080:80" # Mapea el puerto 80 del contenedor al puerto 8080 del host.
+    volumes:
+      - nginx-data:/var/log/nginx # Volumen para los logs.
+      - ./nginx-app/nginx.conf:/etc/nginx/nginx.conf:ro # Archivo de configuración personalizado.
+    networks:
+      - elastic_network # Red compartida por los servicios del stack.
 
 volumes:
- certs:
-   driver: local
- esdata01:
-   driver: local
- kibana-data:
-   driver: local
- nginx-data:
-   driver: local
-
+  certs:
+    driver: local
+  esdata01:
+    driver: local
+  kibana-data:
+    driver: local
+  nginx-data:
+    driver: local
 
 #El driver bridge crea una red virtual privada para los contenedores que están conectados a ella.
 #Esta red está aislada del sistema host y de otras redes de Docker,
 # a menos que configuremos explícitamente conexiones hacia el exterior.
 networks:
- elastic_network:
-   driver: bridge
+  elastic_network:
+    driver: bridge
