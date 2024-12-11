@@ -228,8 +228,72 @@ services:
       - "/:/hostfs:ro"
         # Monta todo el sistema de archivos del host en modo de solo lectura. Esto permite al agente acceder a
         # configuraciones del sistema, logs y otros datos necesarios para monitorear el host y los contenedores.
+    healthcheck:
+      test: [
+        "CMD-SHELL",
+        "curl -s --fail --cacert /usr/share/elastic-agent/certs/ca/ca.crt https://localhost:8220/api/status || exit 1"]
+      interval: 10s       # Verifica cada 10 segundos.
+      timeout: 5s         # Tiempo máximo de espera para una respuesta.
+      retries: 5          # Número de reintentos antes de marcar como no saludable.
     networks:
       - elastic_network # Red compartida por los servicios del stack.
+
+  nginx-agent:
+    # Agente Elastic para monitorear la aplicación Nginx.
+    depends_on:
+      fleet-server:
+        condition: service_healthy # Espera a que el servidor Fleet esté disponible.
+    image: docker.elastic.co/elastic-agent/elastic-agent:${STACK_VERSION} # Imagen del agente Elastic.
+    restart: always # Reinicia automáticamente si falla.
+    user: root # Ejecutar como usuario root.
+    environment:
+      # Configuración de Elasticsearch.
+      - ELASTICSEARCH_HOSTS=["https://es01:9200"] # Dirección de Elasticsearch.
+      - ELASTICSEARCH_USERNAME=elastic # Usuario para autenticación.
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD} # Contraseña del usuario.
+      - ELASTICSEARCH_CA=/usr/share/elastic-agent/certs/ca/ca.crt # CA para validar conexiones.
+      # Configuración de SSL.
+      - SSL_CERTIFICATE=/usr/share/elastic-agent/certs/es01/es01.crt # Certificado SSL.
+      - SSL_KEY=/usr/share/elastic-agent/certs/es01/es01.key # Llave SSL.
+      - SSL_CERTIFICATE_AUTHORITIES=["/usr/share/elastic-agent/certs/ca/ca.crt"] # Autoridades de certificado.
+      # Configuración de Kibana.
+      - KIBANA_HOST=https://kibana:5601 # Dirección de Kibana.
+      - KIBANA_USERNAME=elastic # Usuario para autenticación.
+      - KIBANA_PASSWORD=${KIBANA_PASSWORD} # Contraseña del usuario.
+      - KIBANA_CA=/usr/share/elastic-agent/certs/ca/ca.crt # CA para validar conexiones.
+      # Configuración de Fleet.
+      - FLEET_CA=/usr/share/elastic-agent/certs/ca/ca.crt # CA para Fleet.
+      - FLEET_ENROLL=1 # Habilita el registro automático del agente.
+      - FLEET_ENROLLMENT_TOKEN=${FLEET_ENROLLMENT_TOKEN} # Token de registro de Fleet.
+      - FLEET_URL=https://fleet-server:8220 # Dirección del servidor Fleet.
+      - ELASTIC_AGENT_CERT=/usr/share/elastic-agent/certs/es01/es01.crt # Certificado del agente.
+      - ELASTIC_AGENT_CERT_KEY=/usr/share/elastic-agent/certs/es01/es01.key # Llave del agente.
+      # Nivel de registro de logs.
+      - LOG_LEVEL=debug # Nivel de detalle para los logs.
+      
+    volumes:
+      # Volúmenes para acceso compartido.
+      - certs:/usr/share/elastic-agent/certs # Certificados compartidos.
+      - nginx-data:/var/log/nginx # Logs de la aplicación Nginx.
+      - nginx-agent-data:/usr/share/elastic-agent # Datos persistentes del agente.
+      - "/var/lib/docker/containers:/var/lib/docker/containers:ro"
+        # Este volumen proporciona acceso de solo lectura a los metadatos y logs de los contenedores de Docker
+        # en el sistema host. Es útil para monitorear actividades y estados de los contenedores.
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+        # Permite al agente interactuar con el daemon de Docker en el sistema host para recopilar información
+        # sobre los contenedores en ejecución. Esto incluye la supervisión de métricas y eventos en tiempo real.
+      - "/sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro"
+        # Da acceso al sistema de control de grupos (cgroups) en el host. Los cgroups se utilizan para obtener
+        # información sobre el uso de recursos como CPU, memoria y red, asignados a los contenedores.
+      - "/proc:/hostfs/proc:ro"
+        # Proporciona acceso al sistema de archivos proc del host, que contiene información en tiempo real sobre
+        # los procesos y el estado del sistema. Es crucial para supervisar procesos dentro y fuera de los contenedores.
+      - "/:/hostfs:ro"
+        # Monta todo el sistema de archivos del host en modo de solo lectura. Esto permite al agente acceder a
+        # configuraciones del sistema, logs y otros datos necesarios para monitorear el host y los contenedores.
+    networks:
+      - elastic_network # Red compartida por los servicios del stack.
+
 
 volumes:
   certs:
@@ -242,6 +306,8 @@ volumes:
     driver: local
   fleet-server-data:
     driver: local
+  nginx-agent-data:
+   driver: local
 
 #El driver bridge crea una red virtual privada para los contenedores que están conectados a ella.
 #Esta red está aislada del sistema host y de otras redes de Docker,
