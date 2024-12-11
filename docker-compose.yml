@@ -1,15 +1,12 @@
 # Definimos los servicios necesarios para la configuración del stack de Elastic.
 services:
   setup:
-    # Servicio para la configuración inicial del stack, incluyendo certificados y contraseñas.
-    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION} # Imagen de Elasticsearch.
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
     volumes:
-      # Volúmenes para almacenar los certificados generados.
       - certs:/usr/share/elasticsearch/config/certs
-    user: "0" # Ejecutar el contenedor como usuario root.
+    user: "0"
     command: >
-      # Comandos que se ejecutan al iniciar el contenedor. bash -c '
-        # Verifica que las variables de entorno requeridas estén configuradas.
+      bash -c '
         if [ x${ELASTIC_PASSWORD} == x ]; then
           echo "Set the ELASTIC_PASSWORD environment variable in the .env file";
           exit 1;
@@ -17,13 +14,11 @@ services:
           echo "Set the KIBANA_PASSWORD environment variable in the .env file";
           exit 1;
         fi;
-        # Genera el certificado de la CA si no existe.
         if [ ! -f config/certs/ca.zip ]; then
           echo "Creating CA";
           bin/elasticsearch-certutil ca --silent --pem -out config/certs/ca.zip;
           unzip config/certs/ca.zip -d config/certs;
         fi;
-        # Genera los certificados para las instancias si no existen.
         if [ ! -f config/certs/certs.zip ]; then
           echo "Creating certs";
           echo -ne \
@@ -50,27 +45,23 @@ services:
           bin/elasticsearch-certutil cert --silent --pem -out config/certs/certs.zip --in config/certs/instances.yml --ca-cert config/certs/ca/ca.crt --ca-key config/certs/ca/ca.key;
           unzip config/certs/certs.zip -d config/certs;
         fi;
-        # Configura permisos de archivos generados.
         echo "Setting file permissions"
         chown -R root:root config/certs;
         find . -type d -exec chmod 750 \{\} \;;
         find . -type f -exec chmod 640 \{\} \;;
-        # Espera hasta que Elasticsearch esté disponible.
         echo "Waiting for Elasticsearch availability";
         until curl -s --cacert config/certs/ca/ca.crt https://es01:9200 | grep -q "missing authentication credentials"; do sleep 30; done;
-        # Configura la contraseña del usuario del sistema Kibana.
         echo "Setting kibana_system password";
         until curl -s -X POST --cacert config/certs/ca/ca.crt -u "elastic:${ELASTIC_PASSWORD}" -H "Content-Type: application/json" https://es01:9200/_security/user/kibana_system/_password -d "{\"password\":\"${KIBANA_PASSWORD}\"}" | grep -q "^{}"; do sleep 10; done;
         echo "All done!";
       '
     healthcheck:
-      # Verifica que el archivo de certificado para Elasticsearch se haya creado.
-      test: [ "CMD-SHELL", "[ -f config/certs/es01/es01.crt ]" ]
-      interval: 1s # Intervalo entre verificaciones de estado.
-      timeout: 5s # Tiempo máximo para considerar una verificación fallida.
-      retries: 120 # Número de reintentos antes de considerar el servicio no saludable.
+      test: ["CMD-SHELL", "[ -f config/certs/es01/es01.crt ]"]
+      interval: 1s
+      timeout: 5s
+      retries: 120
     networks:
-      - elastic_network # Red compartida por los servicios del stack.
+      - elastic_network
 
   es01:
     # Nodo principal de Elasticsearch.
