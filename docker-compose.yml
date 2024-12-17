@@ -276,6 +276,7 @@ services:
       - certs:/usr/share/elastic-agent/certs # Certificados compartidos.
       - nginx-data:/var/log/nginx # Logs de la aplicación Nginx.
       - nginx-agent-data:/usr/share/elastic-agent # Datos persistentes del agente.
+      - suricata-logs:/var/log/suricata # Logs de Suricata.
       - "/var/lib/docker/containers:/var/lib/docker/containers:ro"
         # Este volumen proporciona acceso de solo lectura a los metadatos y logs de los contenedores de Docker
         # en el sistema host. Es útil para monitorear actividades y estados de los contenedores.
@@ -294,6 +295,20 @@ services:
     networks:
       - elastic_network # Red compartida por los servicios del stack.
 
+  suricata:
+   build:
+     context: ./suricata  # Ruta donde se encuentra el Dockerfile y cualquier archivo adicional (scripts, configuraciones, reglas, etc.).
+   container_name: suricata  # Nombre del contenedor asignado como "suricata" para facilitar la identificación.
+   restart: always  # Reinicia el contenedor automáticamente si se detiene por cualquier motivo.
+   network_mode: "host"  # Conecta el contenedor directamente a la red del host, lo que permite a Suricata monitorear todas las interfaces y el tráfico.
+   cap_add:  # Agrega capacidades especiales al contenedor para poder capturar tráfico de red y funcionar correctamente.
+     - NET_ADMIN   # Permite realizar operaciones de administración de red (requerido para captura de paquetes).
+     - NET_RAW     # Permite acceder al tráfico de red bruto.
+     - SYS_NICE    # Permite ajustar las prioridades de los hilos para optimizar el rendimiento de Suricata.
+   volumes:
+     - suricata-logs:/var/log/suricata  # Monta un volumen persistente donde se almacenarán los logs de Suricata (por ejemplo, eve.json).
+   environment:
+     - SURICATA_UPDATE_ENABLED=true  # Variable de entorno personalizada para habilitar la actualización de reglas de Suricata en tiempo de ejecución.
 
 volumes:
   certs:
@@ -307,6 +322,8 @@ volumes:
   fleet-server-data:
     driver: local
   nginx-agent-data:
+   driver: local
+  suricata-logs:
    driver: local
 
 #El driver bridge crea una red virtual privada para los contenedores que están conectados a ella.
