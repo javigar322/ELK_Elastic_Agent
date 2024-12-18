@@ -56,7 +56,7 @@ services:
         echo "All done!";
       '
     healthcheck:
-      test: ["CMD-SHELL", "[ -f config/certs/es01/es01.crt ]"]
+      test: [ "CMD-SHELL", "[ -f config/certs/es01/es01.crt ]" ]
       interval: 1s
       timeout: 5s
       retries: 120
@@ -229,12 +229,10 @@ services:
         # Monta todo el sistema de archivos del host en modo de solo lectura. Esto permite al agente acceder a
         # configuraciones del sistema, logs y otros datos necesarios para monitorear el host y los contenedores.
     healthcheck:
-      test: [
-        "CMD-SHELL",
-        "curl -s --fail --cacert /usr/share/elastic-agent/certs/ca/ca.crt https://localhost:8220/api/status || exit 1"]
-      interval: 10s       # Verifica cada 10 segundos.
-      timeout: 5s         # Tiempo máximo de espera para una respuesta.
-      retries: 5          # Número de reintentos antes de marcar como no saludable.
+      test: [ "CMD-SHELL", "curl -s --fail --cacert /usr/share/elastic-agent/certs/ca/ca.crt https://localhost:8220/api/status || exit 1" ]
+      interval: 10s # Verifica cada 10 segundos.
+      timeout: 5s # Tiempo máximo de espera para una respuesta.
+      retries: 5 # Número de reintentos antes de marcar como no saludable.
     networks:
       - elastic_network # Red compartida por los servicios del stack.
 
@@ -270,12 +268,13 @@ services:
       - ELASTIC_AGENT_CERT_KEY=/usr/share/elastic-agent/certs/es01/es01.key # Llave del agente.
       # Nivel de registro de logs.
       - LOG_LEVEL=debug # Nivel de detalle para los logs.
-      
+
     volumes:
       # Volúmenes para acceso compartido.
       - certs:/usr/share/elastic-agent/certs # Certificados compartidos.
       - nginx-data:/var/log/nginx # Logs de la aplicación Nginx.
       - nginx-agent-data:/usr/share/elastic-agent # Datos persistentes del agente.
+      - suricata-logs:/var/log/suricata # Logs de Suricata.
       - "/var/lib/docker/containers:/var/lib/docker/containers:ro"
         # Este volumen proporciona acceso de solo lectura a los metadatos y logs de los contenedores de Docker
         # en el sistema host. Es útil para monitorear actividades y estados de los contenedores.
@@ -294,6 +293,22 @@ services:
     networks:
       - elastic_network # Red compartida por los servicios del stack.
 
+  suricata:
+    build:
+      context: ./suricata # Ruta donde se encuentra el Dockerfile y cualquier archivo adicional (scripts, configuraciones, reglas, etc.).
+    container_name: suricata # Nombre del contenedor asignado como "suricata" para facilitar la identificación.
+    restart: always # Reinicia el contenedor automáticamente si se detiene por cualquier motivo.
+    network_mode: "host" # Conecta el contenedor directamente a la red del host, lo que permite a Suricata monitorear todas las interfaces y el tráfico.
+    cap_add:
+      # Agrega capacidades especiales al contenedor para poder capturar tráfico de red y funcionar correctamente.
+      - NET_ADMIN # Permite realizar operaciones de administración de red (requerido para captura de paquetes).
+      - NET_RAW # Permite acceder al tráfico de red bruto.
+      - SYS_NICE # Permite ajustar las prioridades de los hilos para optimizar el rendimiento de Suricata.
+    volumes:
+      - suricata-logs:/var/log/suricata # Monta un volumen persistente donde se almacenarán los logs de Suricata (por ejemplo, eve.json).
+    environment:
+      - SURICATA_UPDATE_ENABLED=true
+      - NGINX_INTERFACE=${NGINX_INTERFACE}
 
 volumes:
   certs:
@@ -307,7 +322,9 @@ volumes:
   fleet-server-data:
     driver: local
   nginx-agent-data:
-   driver: local
+    driver: local
+  suricata-logs:
+    driver: local
 
 #El driver bridge crea una red virtual privada para los contenedores que están conectados a ella.
 #Esta red está aislada del sistema host y de otras redes de Docker,
