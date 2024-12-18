@@ -21,7 +21,7 @@ vars:
     #HOME_NET: "[172.16.0.0/12]"
     #HOME_NET: "any"
 
-    EXTERNAL_NET: "!$HOME_NET"
+    #EXTERNAL_NET: "!$HOME_NET"
     #EXTERNAL_NET: "any"
 
     HTTP_SERVERS: "$HOME_NET"
@@ -619,7 +619,7 @@ logging:
 
 # Linux high speed capture support
 af-packet:
-  - interface: eth0
+  - interface: enp5s0
     # Number of receive threads. "auto" uses the number of cores
     #threads: auto
     # Default clusterid. AF_PACKET will load balance packets based on flow.
@@ -812,7 +812,7 @@ dpdk:
 
 # Cross platform libpcap capture support
 pcap:
-  - interface: eth0
+  - interface: enp5s0
     # On Linux, pcap will try to use mmap'ed capture and will use "buffer-size"
     # as total memory used by the ring. So set this to something bigger
     # than 1% of your bandwidth.
@@ -2001,7 +2001,7 @@ netmap:
 # PF_RING configuration: for use with native PF_RING support
 # for more info see http://www.ntop.org/products/pf_ring/
 pfring:
-  - interface: eth0
+  - interface: enp5s0
     # Number of receive threads. If set to 'auto' Suricata will first try
     # to use CPU (core) count and otherwise RSS queue count.
     threads: auto
