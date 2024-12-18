@@ -21,7 +21,7 @@ vars:
     #HOME_NET: "[172.16.0.0/12]"
     #HOME_NET: "any"
 
-    #EXTERNAL_NET: "!$HOME_NET"
+    EXTERNAL_NET: "!$HOME_NET"
     #EXTERNAL_NET: "any"
 
     HTTP_SERVERS: "$HOME_NET"
@@ -619,84 +619,21 @@ logging:
 
 # Linux high speed capture support
 af-packet:
-  - interface: enp5s0
-    # Number of receive threads. "auto" uses the number of cores
-    #threads: auto
-    # Default clusterid. AF_PACKET will load balance packets based on flow.
+  - interface: enxa0cec8bc6f53
+    threads: auto
     cluster-id: 99
-    # Default AF_PACKET cluster type. AF_PACKET can load balance per flow or per hash.
-    # This is only supported for Linux kernel > 3.1
-    # possible value are:
-    #  * cluster_flow: all packets of a given flow are sent to the same socket
-    #  * cluster_cpu: all packets treated in kernel by a CPU are sent to the same socket
-    #  * cluster_qm: all packets linked by network card to a RSS queue are sent to the same
-    #  socket. Requires at least Linux 3.14.
-    #  * cluster_ebpf: eBPF file load balancing. See doc/userguide/capture-hardware/ebpf-xdp.rst for
-    #  more info.
-    # Recommended modes are cluster_flow on most boxes and cluster_cpu or cluster_qm on system
-    # with capture card using RSS (requires cpu affinity tuning and system IRQ tuning)
-    # cluster_rollover has been deprecated; if used, it'll be replaced with cluster_flow.
     cluster-type: cluster_flow
-    # In some fragmentation cases, the hash can not be computed. If "defrag" is set
-    # to yes, the kernel will do the needed defragmentation before sending the packets.
     defrag: yes
-    # To use the ring feature of AF_PACKET, set 'use-mmap' to yes
-    #use-mmap: yes
-    # Lock memory map to avoid it being swapped. Be careful that over
-    # subscribing could lock your system
-    #mmap-locked: yes
-    # Use tpacket_v3 capture mode, only active if use-mmap is true
-    # Don't use it in IPS or TAP mode as it causes severe latency
-    #tpacket-v3: yes
-    # Ring size will be computed with respect to "max-pending-packets" and number
-    # of threads. You can set manually the ring size in number of packets by setting
-    # the following value. If you are using flow "cluster-type" and have really network
-    # intensive single-flow you may want to set the "ring-size" independently of the number
-    # of threads:
-    #ring-size: 2048
-    # Block size is used by tpacket_v3 only. It should set to a value high enough to contain
-    # a decent number of packets. Size is in bytes so please consider your MTU. It should be
-    # a power of 2 and it must be multiple of page size (usually 4096).
-    #block-size: 32768
-    # tpacket_v3 block timeout: an open block is passed to userspace if it is not
-    # filled after block-timeout milliseconds.
-    #block-timeout: 10
-    # On busy systems, set it to yes to help recover from a packet drop
-    # phase. This will result in some packets (at max a ring flush) not being inspected.
-    #use-emergency-flush: yes
-    # recv buffer size, increased value could improve performance
-    # buffer-size: 32768
-    # Set to yes to disable promiscuous mode
-    # disable-promisc: no
-    # Choose checksum verification mode for the interface. At the moment
-    # of the capture, some packets may have an invalid checksum due to
-    # the checksum computation being offloaded to the network card.
-    # Possible values are:
-    #  - kernel: use indication sent by kernel for each packet (default)
-    #  - yes: checksum validation is forced
-    #  - no: checksum validation is disabled
-    #  - auto: Suricata uses a statistical approach to detect when
-    #  checksum off-loading is used.
-    # Warning: 'capture.checksum-validation' must be set to yes to have any validation
-    #checksum-checks: kernel
-    # BPF filter to apply to this interface. The pcap filter syntax applies here.
-    #bpf-filter: port 80 or udp
-    # You can use the following variables to activate AF_PACKET tap or IPS mode.
-    # If copy-mode is set to ips or tap, the traffic coming to the current
-    # interface will be copied to the copy-iface interface. If 'tap' is set, the
-    # copy is complete. If 'ips' is set, the packet matching a 'drop' action
-    # will not be copied.
-    #copy-mode: ips
-    #copy-iface: eth1
-    #  For eBPF and XDP setup including bypass, filter and load balancing, please
-    #  see doc/userguide/capture-hardware/ebpf-xdp.rst for more info.
-
-  # Put default values here. These will be used for an interface that is not
-  # in the list above.
-  - interface: default
-    #threads: auto
-    #use-mmap: no
-    #tpacket-v3: yes
+    use-mmap: yes
+    mmap-locked: yes
+    tpacket-v3: yes
+    ring-size: 2048
+    block-size: 32768
+    block-timeout: 10
+    use-emergency-flush: yes
+    buffer-size: 32768
+    disable-promisc: no
+    checksum-checks: auto
 
 # Linux high speed af-xdp capture support
 af-xdp:
@@ -812,7 +749,7 @@ dpdk:
 
 # Cross platform libpcap capture support
 pcap:
-  - interface: enp5s0
+  - interface: enxa0cec8bc6f53
     # On Linux, pcap will try to use mmap'ed capture and will use "buffer-size"
     # as total memory used by the ring. So set this to something bigger
     # than 1% of your bandwidth.
@@ -874,6 +811,8 @@ pcap-file:
 app-layer:
   # error-policy: ignore
   protocols:
+    http:
+      enabled: yes
     telnet:
       enabled: yes
     rfb:
@@ -2001,7 +1940,7 @@ netmap:
 # PF_RING configuration: for use with native PF_RING support
 # for more info see http://www.ntop.org/products/pf_ring/
 pfring:
-  - interface: enp5s0
+  - interface: enxa0cec8bc6f53
     # Number of receive threads. If set to 'auto' Suricata will first try
     # to use CPU (core) count and otherwise RSS queue count.
     threads: auto
@@ -2175,6 +2114,7 @@ default-rule-path: /var/lib/suricata/rules
 
 rule-files:
   - suricata.rules
+  - custom.rules
 
 ##
 ## Auxiliary configuration files.
