@@ -311,7 +311,6 @@ services:
       - NGINX_INTERFACE=${NGINX_INTERFACE}
   
   dvwa:
-   build: ./DVWA
    image: ghcr.io/digininja/dvwa:latest
    # Change `always` to `build` to build from local source
    pull_policy: always
