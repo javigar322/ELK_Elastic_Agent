@@ -8,7 +8,7 @@ ENV SURICATA_UPDATE_ENABLED=true
 # Copiar el script de entrada y las configuraciones
 COPY entrypoint.sh /entrypoint.sh
 COPY config/suricata.yaml /etc/suricata/suricata.yaml
-COPY rules/custom.rules /etc/suricata/rules/custom.rules
+COPY rules/custom.rules /var/lib/suricata/rules/custom.rules
 
 
 # Otorgar permisos de ejecución al script

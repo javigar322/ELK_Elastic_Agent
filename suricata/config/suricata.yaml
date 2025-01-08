@@ -633,7 +633,7 @@ af-packet:
     use-emergency-flush: yes
     buffer-size: 32768
     disable-promisc: no
-    checksum-checks: auto
+    checksum-checks: no
 
 # Linux high speed af-xdp capture support
 af-xdp:
@@ -1883,7 +1883,7 @@ capture:
   #
   # disable checksum validation. Same as setting '-k none' on the
   # command-line.
-  #checksum-validation: none
+  checksum-validation: none
 
 # Netmap support
 #

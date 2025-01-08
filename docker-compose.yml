@@ -309,6 +309,35 @@ services:
     environment:
       - SURICATA_UPDATE_ENABLED=true
       - NGINX_INTERFACE=${NGINX_INTERFACE}
+  
+  dvwa:
+   build: ./DVWA
+   image: ghcr.io/digininja/dvwa:latest
+   # Change `always` to `build` to build from local source
+   pull_policy: always
+   environment:
+     - DB_SERVER=db
+     - DEFAULT_SECURITY_LEVEL=low
+   depends_on:
+     - db
+   networks:
+     - elastic_network # Red compartida por los servicios del stack.
+   ports:
+     - 4280:80
+   restart: unless-stopped
+
+  db:
+   image: docker.io/library/mariadb:10
+   environment:
+     - MYSQL_ROOT_PASSWORD=dvwa
+     - MYSQL_DATABASE=dvwa
+     - MYSQL_USER=dvwa
+     - MYSQL_PASSWORD=p@ssw0rd
+   volumes:
+     - dvwa:/var/lib/mysql
+   networks:
+     - elastic_network # Red compartida por los servicios del stack.
+   restart: unless-stopped
 
 volumes:
   certs:
@@ -324,6 +353,8 @@ volumes:
   nginx-agent-data:
     driver: local
   suricata-logs:
+    driver: local
+  dvwa:
     driver: local
 
 #El driver bridge crea una red virtual privada para los contenedores que están conectados a ella.
