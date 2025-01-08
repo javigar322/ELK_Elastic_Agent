@@ -18,11 +18,11 @@ if [ "$SURICATA_UPDATE_ENABLED" = "true" ]; then
     suricata-update
 fi
 
-# Combinar reglas personalizadas si existen
-if [ -f /etc/suricata/rules/custom.rules ]; then
-    echo "Appending custom rules..."
-    cat /etc/suricata/rules/custom.rules >> /var/lib/suricata/rules/suricata.rules
-fi
+#Combinar reglas personalizadas si existen
+#if [ -f /etc/suricata/rules/custom.rules ]; then
+#    echo "Appending custom rules..."
+#    cat /etc/suricata/rules/custom.rules >> /var/lib/suricata/rules/suricata.rules
+#fi
 
 # Reemplazar la interfaz en el archivo de configuración de Suricata
 sed -i "s/INTERFACE/$NGINX_INTERFACE/g" /etc/suricata/suricata.yaml
