@@ -1,4 +1,5 @@
-alert http any any -> any any (msg:"HTTP Test My NIDS Detected"; content:"testmynids.org"; classtype:policy-violation; sid:1000003; rev:1;)
+alert http any any -> any any (msg:"HTTP Test My NIDS Detectado"; content:"testmynids.org"; classtype:policy-violation; sid:1000003; rev:1;)
+alert tcp any any -> any 80 (msg:"Acceso a edu4java detectado"; content:"edu4java.com"; classtype:policy-violation; sid:1000005; rev:1;)
 alert http any any -> any 8080 (msg: "Possible DDoS attack"; flags: S; flow: stateless; threshold: type both, track by_dst, count 200, seconds 1; classtype:attempted-dos; sid:1000001; rev:1;)
 alert http any any -> any any (msg:"Metasploit SQL Injection Attempt Detected"; content:"SQL Error"; classtype:web-application-attack; sid:100016;)
 alert http any any -> any any (msg: "Possible SQL Injection attack (Contains singlequote)"; flow:established,to_server; content:"'"; nocase; http_uri; classtype:web-application-attack; sid:1;)
